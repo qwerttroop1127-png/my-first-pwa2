@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>目標手帳 Pro</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Inline SVG Favicon Data URI -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563eb'%3E%3Cpath d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E">
+
+    <style>
+        /* Native App Experience Constraints */
+        * {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Inputs exceptions for selection and zoom prevention */
+        input, textarea, select {
+            -webkit-user-select: text;
+            user-select: text;
+            font-size: 16px !important; /* Prevent iOS Safari auto-zoom */
+        }
+
+        /* Button active touch feedback */
+        button:active, .active-scale:active {
+            transform: scale(0.96);
+            opacity: 0.9;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 9999px;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .dark body {
+            background-color: #090d16;
+            color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
+
+    <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-circle-check text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-tight">目標手帳 Pro</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400" id="current-date-label">載入中...</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Theme Toggle Button -->
+                <button id="theme-toggle" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 transition">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline text-amber-400"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-md w-full mx-auto p-4 pb-24 overflow-y-auto">
+        
+        <!-- Stats Card -->
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-xl shadow-blue-500/20 mb-6 relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full pointer-events-none blur-2xl"></div>
+            
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="text-xs font-medium uppercase tracking-wider text-blue-200 bg-white/20 px-2.5 py-1 rounded-full">今日達成進度</span>
+                    <h2 class="text-3xl font-black mt-2" id="progress-percentage">0%</h2>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-blue-200 block">連續打卡</span>
+                    <div class="flex items-center justify-end space-x-1 mt-1">
+                        <i class="fa-solid fa-fire text-amber-400 text-lg animate-pulse"></i>
+                        <span class="text-2xl font-bold" id="streak-count">0</span>
+                        <span class="text-xs text-blue-200">天</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-black/20 rounded-full h-3 overflow-hidden p-0.5">
+                <div id="progress-bar-fill" class="bg-white h-full rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-blue-100 mt-2">
+                <span id="completed-count-label">已完成 0 / 0 項目標</span>
+                <span id="encouragement-text">保持好習慣，迎向美好一天！</span>
+            </div>
+        </div>
+
+        <div class="flex rounded-xl bg-slate-200/70 dark:bg-slate-800/70 p-1 mb-5">
+            <button onclick="switchTab('habits')" id="tab-btn-habits" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 transition">今日打卡</button>
+            <button onclick="switchTab('reflection')" id="tab-btn-reflection" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-600 dark:text-slate-400 transition">每日反思</button>
+            <button onclick="switchTab('manage')" id="tab-btn-manage" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-600 dark:text-slate-400 transition">目標管理</button>
+        </div>
+
+        <!-- Tab 1: Habits Today -->
+        <div id="tab-habits" class="space-y-4">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-base">今日待打卡項目</h3>
+                <button onclick="openAddModal()" class="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center space-x-1">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新增目標</span>
+                </button>
+            </div>
+            
+            <div id="habits-container" class="space-y-3">
+                <!-- Dynamic Habit Cards will be injected here -->
+            </div>
+        </div>
+
+        <!-- Tab 2: Daily Reflection -->
+        <div id="tab-reflection" class="space-y-4 hidden">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-base mb-1">今日心境與感恩反思</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">記錄今天的收穫、值得感恩的事或需要改進的地方。</p>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">今天最值得感恩的一件事：</label>
+                        <textarea id="reflection-grateful" rows="2" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition resize-none" placeholder="例如：今天喝到了一杯好咖啡、專注完成了專案..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">今日反思與明日展望：</label>
+                        <textarea id="reflection-notes" rows="3" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition resize-none" placeholder="今天有什麼可以做得更好？明天想達成的核心任務是什麼？"></textarea>
+                    </div>
+                    <button onclick="saveReflection()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-lg shadow-blue-500/20 transition active-scale">
+                        儲存今日反思
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Goal Management -->
+        <div id="tab-manage" class="space-y-4 hidden">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-base">全部目標列表</h3>
+                <button onclick="openAddModal()" class="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center space-x-1">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新增目標</span>
+                </button>
+            </div>
+            
+            <div id="manage-container" class="space-y-3">
+                <!-- Dynamic Manage Cards will be injected here -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Floating Action Button -->
+    <div class="fixed bottom-6 right-6 z-40">
+        <button onclick="openAddModal()" class="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl shadow-blue-600/30 flex items-center justify-center text-xl transition active-scale">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="goal-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-title" class="font-bold text-lg text-slate-900 dark:text-white">新增每日目標</h3>
+                <button onclick="closeAddModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-700">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <form id="goal-form" onsubmit="handleGoalSubmit(event)" class="space-y-4">
+                <input type="hidden" id="goal-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">目標名稱</label>
+                    <input type="text" id="goal-name" required placeholder="例如：每日晨跑 30 分鐘" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">分類標籤</label>
+                    <select id="goal-category" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="健康運動">健康運動</option>
+                        <option value="個人成長">個人成長</option>
+                        <option value="工作學習">工作學習</option>
+                        <option value="生活日常">生活日常</option>
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-lg shadow-blue-500/20 transition active-scale">
+                        確認儲存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notification Box -->
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-full text-sm font-medium shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 flex items-center space-x-2">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-message">操作成功</span>
+    </div>
+
+    <script>
+        // State Management
+        let appData = {
+            goals: [],
+            logs: {}, // Format: { "YYYY-MM-DD": { goalId: true/false } }
+            reflections: {} // Format: { "YYYY-MM-DD": { grateful: "", notes: "" } }
+        };
+
+        // Initialize Date helpers
+        function getTodayString() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        const todayKey = getTodayString();
+
+        // Load data from localStorage
+        function loadData() {
+            const saved = localStorage.getItem('goal_tracker_data_pro');
+            if (saved) {
+                try {
+                    appData = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Failed to parse local storage", e);
+                }
+            } else {
+                // Default sample data if first time
+                appData.goals = [
+                    { id: 'g1', name: '晨間冥想 10 分鐘', category: '健康運動' },
+                    { id: 'g2', name: '閱讀專業書籍 20 頁', category: '個人成長' },
+                    { id: 'g3', name: '寫下今日工作核心清單', category: '工作學習' },
+                    { id: 'g4', name: '喝足 2000cc 水分', category: '生活日常' }
+                ];
+                saveData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('goal_tracker_data_pro', JSON.stringify(appData));
+        }
+
+        // Show Toast Notification
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2000);
+        }
+
+        function renderUI() {
+            // Update Date Header
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('current-date-label').innerText = new Date().toLocaleDateString('zh-TW', options);
+
+            // Ensure today's log entry exists
+            if (!appData.logs[todayKey]) {
+                appData.logs[todayKey] = {};
+            }
+
+            const totalGoals = appData.goals.length;
+            const todayLogs = appData.logs[todayKey];
+            let completedCount = 0;
+
+            appData.goals.forEach(goal => {
+                if (todayLogs[goal.id]) completedCount++;
+            });
+
+            // Calculate percentage
+            const percentage = totalGoals > 0 ? Math.round((completedCount / totalGoals) * 100) : 0;
+            document.getElementById('progress-percentage').innerText = `${percentage}%`;
+            document.getElementById('progress-bar-fill').style.width = `${percentage}%`;
+            document.getElementById('completed-count-label').innerText = `已完成 ${completedCount} / ${totalGoals} 項目標`;
+
+            // Encouragement message
+            let enc = "保持好習慣，迎向美好一天！";
+            if (percentage === 100 && totalGoals > 0) enc = "太棒了！今日目標全部達成！";
+            else if (percentage >= 50) enc = "進度過半，繼續保持衝勁！";
+            document.getElementById('encouragement-text').innerText = enc;
+
+            // Calculate Streaks
+            calculateStreak();
+
+            // Render Habits Tab
+            renderHabitsList();
+
+            // Render Manage Tab
+            renderManageList();
+
+            // Render Reflection Tab
+            renderReflectionTab();
+        }
+
+        function calculateStreak() {
+            let streak = 0;
+            let checkDate = new Date();
+            
+            while (true) {
+                const y = checkDate.getFullYear();
+                const m = String(checkDate.getMonth() + 1).padStart(2, '0');
+                const d = String(checkDate.getDate()).padStart(2, '0');
+                const dateStr = `${y}-${m}-${d}`;
+
+                const dayLogs = appData.logs[dateStr];
+                const totalGoals = appData.goals.length;
+
+                if (!dayLogs || totalGoals === 0) {
+                    // If today and not completed yet, don't break streak immediately, check yesterday
+                    if (dateStr === todayKey) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                        continue;
+                    }
+                    break;
+                }
+
+                let dayCompleted = 0;
+                appData.goals.forEach(g => {
+                    if (dayLogs[g.id]) dayCompleted++;
+                });
+
+                if (dayCompleted === totalGoals && totalGoals > 0) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    if (dateStr === todayKey) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                        continue;
+                    }
+                    break;
+                }
+            }
+
+            document.getElementById('streak-count').innerText = streak;
+        }
+
+        function renderHabitsList() {
+            const container = document.getElementById('habits-container');
+            if (appData.goals.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                        <i class="fa-solid fa-clipboard-list text-3xl text-slate-400 mb-2"></i>
+                        <p class="text-sm text-slate-500">目前尚無任何目標，點擊下方新增開始記錄！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const todayLogs = appData.logs[todayKey] || {};
+            let html = '';
+
+            appData.goals.forEach(goal => {
+                const isCompleted = !!todayLogs[goal.id];
+                const categoryColor = getCategoryColor(goal.category);
+
+                html += `
+                    <div onclick="toggleGoal('${goal.id}')" class="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm cursor-pointer transition active-scale hover:border-blue-400">
+                        <div class="flex items-center space-x-3.5">
+                            <div class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-500 text-white' : 'border-2 border-slate-300 dark:border-slate-700'}">
+                                ${isCompleted ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-sm text-slate-800 dark:text-slate-200 ${isCompleted ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(goal.name)}</h4>
+                                <span class="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-1 ${categoryColor}">${escapeHtml(goal.category)}</span>
+                            </div>
+                        </div>
+                        <div class="text-slate-400">
+                            <i class="fa-solid fa-chevron-right text-xs opacity-50"></i>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderManageList() {
+            const container = document.getElementById('manage-container');
+            if (appData.goals.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                        <p class="text-sm text-slate-500">尚無目標管理項目</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            appData.goals.forEach(goal => {
+                const categoryColor = getCategoryColor(goal.category);
+                html += `
+                    <div class="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+                        <div>
+                            <h4 class="font-semibold text-sm text-slate-800 dark:text-slate-200">${escapeHtml(goal.name)}</h4>
+                            <span class="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-1 ${categoryColor}">${escapeHtml(goal.category)}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="openEditModal('${goal.id}')" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active-scale">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="deleteGoal('${goal.id}')" class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center transition active-scale">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderReflectionTab() {
+            const ref = appData.reflections[todayKey] || { grateful: '', notes: '' };
+            document.getElementById('reflection-grateful').value = ref.grateful;
+            document.getElementById('reflection-notes').value = ref.notes;
+        }
+
+        function getCategoryColor(cat) {
+            switch(cat) {
+                case '健康運動': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400';
+                case '個人成長': return 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400';
+                case '工作學習': return 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400';
+                default: return 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400';
+            }
+        }
+
+        function toggleGoal(goalId) {
+            if (!appData.logs[todayKey]) appData.logs[todayKey] = {};
+            appData.logs[todayKey][goalId] = !appData.logs[todayKey][goalId];
+            saveData();
+            renderUI();
+            showToast('已更新打卡狀態');
+        }
+
+        function switchTab(tabName) {
+            ['habits', 'reflection', 'manage'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`tab-btn-${t}`).className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-600 dark:text-slate-400 transition";
+            });
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-btn-${tabName}`).className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 transition";
+        }
+
+        function openAddModal() {
+            document.getElementById('modal-title').innerText = '新增每日目標';
+            document.getElementById('goal-id').value = '';
+            document.getElementById('goal-name').value = '';
+            document.getElementById('goal-category').value = '健康運動';
+            document.getElementById('goal-modal').classList.remove('hidden');
+            document.getElementById('goal-modal').classList.add('flex');
+        }
+
+        function openEditModal(goalId) {
+            const goal = appData.goals.find(g => g.id === goalId);
+            if (!goal) return;
+            document.getElementById('modal-title').innerText = '編輯目標';
+            document.getElementById('goal-id').value = goal.id;
+            document.getElementById('goal-name').value = goal.name;
+            document.getElementById('goal-category').value = goal.category;
+            document.getElementById('goal-modal').classList.remove('hidden');
+            document.getElementById('goal-modal').classList.add('flex');
+        }
+
+        function closeAddModal() {
+            document.getElementById('goal-modal').classList.add('hidden');
+            document.getElementById('goal-modal').classList.remove('flex');
+        }
+
+        function handleGoalSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('goal-id').value;
+            const name = document.getElementById('goal-name').value.trim();
+            const category = document.getElementById('goal-category').value;
+
+            if (!name) return;
+
+            if (id) {
+                // Edit
+                const goal = appData.goals.find(g => g.id === id);
+                if (goal) {
+                    goal.name = name;
+                    goal.category = category;
+                }
+                showToast('目標已更新');
+            } else {
+                // Add new
+                const newGoal = {
+                    id: 'g_' + Date.now(),
+                    name,
+                    category
+                };
+                appData.goals.push(newGoal);
+                showToast('成功新增目標');
+            }
+
+            saveData();
+            closeAddModal();
+            renderUI();
+        }
+
+        function deleteGoal(goalId) {
+            appData.goals = appData.goals.filter(g => g.id !== goalId);
+            saveData();
+            renderUI();
+            showToast('已刪除目標');
+        }
+
+        function saveReflection() {
+            const grateful = document.getElementById('reflection-grateful').value;
+            const notes = document.getElementById('reflection-notes').value;
+            
+            appData.reflections[todayKey] = { grateful, notes };
+            saveData();
+            showToast('今日反思已成功儲存');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Theme Toggle
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        themeToggleBtn.addEventListener('click', () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        // Initialize Theme from localStorage
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Dynamically create Web App Manifest Blob URL
+        const manifestData = {
+            name: "目標手帳 Pro",
+            short_name: "目標手帳",
+            start_url: "./",
+            display: "standalone",
+            background_color: "#ffffff",
+            theme_color: "#2563eb",
+            icons: [
+                {
+                    src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563eb'%3E%3Cpath d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E",
+                    sizes: "192x192",
+                    type: "image/svg+xml"
+                }
+            ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        // Register Service Worker for offline capability
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(clients.claim());
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(
+                        caches.match(e.request).then((response) => {
+                            return response || fetch(e.request).catch(() => {
+                                return caches.match('./');
+                            });
+                        })
+                    );
+                });
+            `;
+            const swBlob = new Blob([swCode], { type: 'text/javascript' });
+            const swURL = URL.createObjectURL(swBlob);
+            navigator.serviceWorker.register(swURL).then(() => {
+                console.log("PWA Service Worker registered successfully.");
+            }).catch(err => {
+                console.warn("Service Worker registration failed:", err);
+            });
+        }
+
+        // Run application on load
+        window.onload = function() {
+            loadData();
+            renderUI();
+        };
+    </script>
+</body>
+</html>
